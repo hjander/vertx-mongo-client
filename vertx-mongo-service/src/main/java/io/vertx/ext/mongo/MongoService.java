@@ -86,6 +86,10 @@ public interface MongoService extends MongoClient {
 
   @Override
   @Fluent
+  MongoClient findOneAndUpdateWithOptions(String collection, JsonObject query, JsonObject update, FindOneAndUpdateOptions options, Handler<AsyncResult<JsonObject>> resultHandler);
+
+  @Override
+  @Fluent
   MongoService count(String collection, JsonObject query, Handler<AsyncResult<Long>> resultHandler);
 
   @Override

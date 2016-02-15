@@ -1,6 +1,7 @@
 package io.vertx.ext.mongo;
 
-import io.vertx.core.*;
+import io.vertx.core.Context;
+import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.test.core.TestUtils;
@@ -11,7 +12,6 @@ import java.io.*;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static io.vertx.ext.mongo.WriteOption.ACKNOWLEDGED;
@@ -630,6 +630,116 @@ public abstract class MongoClientTestBase extends MongoTestBase {
     }));
     await();
   }
+
+  @Test
+  public void testFindOneAndUpdateWithProjection() throws Exception {
+
+    FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().setProjection(new JsonObject().put("foo", true));
+
+    doTestFindOneAndUpdate(new JsonObject(), new JsonObject(), options, results -> {
+      assertEquals(2, results.size());
+    });
+  }
+
+  @Test
+  public void testFindOneAndUpdateWithSort() throws Exception {
+
+    FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().setSort(new JsonObject().put("foo", 1));
+    JsonObject updateDoc = new JsonObject().put("$set", new JsonObject().put("status", "IN_USE"));
+
+    doTestFindOneAndUpdate(new JsonObject(), updateDoc, options, results -> {
+      assertEquals("bar0", results.getString("foo"));
+    });
+  }
+
+
+  @Test
+  public void testFindOneAndUpdateWithReturnDocumentAfter() throws Exception {
+
+    FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().setReturnDocument(FindOneAndUpdateOptions.ReturnDocument.AFTER);
+    JsonObject updateDoc = new JsonObject().put("$set", new JsonObject().put("status", "IN_USE"));
+
+    doTestFindOneAndUpdate(new JsonObject(), updateDoc, options, results -> {
+      assertEquals(12, results.size());
+      assertEquals("IN_USE", results.getString("status"));
+    });
+  }
+
+  @Test
+  public void testFindOneAndUpdateWithReturnDocumentBefore() throws Exception {
+
+    JsonObject query = new JsonObject();
+    JsonObject updateDoc = new JsonObject().put("$set", new JsonObject().put("status", "IN_USE"));
+    FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().setReturnDocument(FindOneAndUpdateOptions.ReturnDocument.BEFORE);
+
+    doTestFindOneAndUpdate(query, updateDoc, options, results -> {
+      assertEquals(11, results.size());
+      assertNull(results.getString("status"));
+    });
+  }
+
+  @Test
+  public void testFindOneAndUpdateWithUpsertAndReturnDocumentAfter() throws Exception {
+
+    JsonObject query = new JsonObject().put("name", "vertx");
+    JsonObject updateDoc = new JsonObject().put("$set", new JsonObject().put("status", "IN_USE"));
+
+    FindOneAndUpdateOptions options = new FindOneAndUpdateOptions()
+            .setReturnDocument(FindOneAndUpdateOptions.ReturnDocument.AFTER)
+            .setUpsert(true);
+
+    doTestFindOneAndUpdate(query, updateDoc, options, results -> {
+      assertEquals(3, results.size());
+      assertEquals("vertx", results.getString("name"));
+      assertEquals("IN_USE", results.getString("status"));
+    });
+  }
+
+  @Test
+  public void testFindOneAndUpdateWithUpsertFalseAndReturnDocumentAfter() throws Exception {
+
+    JsonObject query = new JsonObject().put("name", "vertx");
+    JsonObject updateDoc = new JsonObject().put("$set", new JsonObject().put("status", "IN_USE"));
+
+    FindOneAndUpdateOptions options = new FindOneAndUpdateOptions()
+            .setReturnDocument(FindOneAndUpdateOptions.ReturnDocument.AFTER)
+            .setUpsert(false);
+
+    doTestFindOneAndUpdate(query, updateDoc, options, results -> {
+      assertNull(results);
+    });
+  }
+
+  @Test
+  public void testFindOneAndUpdateWithUpsertAndReturnDocumentBefore() throws Exception {
+
+    JsonObject query = new JsonObject().put("name", "vertx");
+    JsonObject updateDoc = new JsonObject().put("$set", new JsonObject().put("status", "IN_USE"));
+
+    FindOneAndUpdateOptions options = new FindOneAndUpdateOptions()
+            .setReturnDocument(FindOneAndUpdateOptions.ReturnDocument.BEFORE)
+            .setUpsert(true);
+
+    doTestFindOneAndUpdate(query, updateDoc, options, results -> {
+      assertNull(results);
+    });
+  }
+
+  private void doTestFindOneAndUpdate(JsonObject query, JsonObject update, FindOneAndUpdateOptions options, Consumer<JsonObject> resultConsumer) throws Exception {
+    String collection = randomCollection();
+    mongoClient.createCollection(collection, onSuccess(res -> {
+      insertDocs(mongoClient, collection, 1, onSuccess(res2 -> {
+
+        mongoClient.findOneAndUpdateWithOptions(collection, query, update, options, onSuccess(res3 -> {
+          resultConsumer.accept(res3);
+          testComplete();
+        }));
+      }));
+    }));
+    await();
+  }
+
+
 
   @Test
   public void testReplace() {

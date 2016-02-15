@@ -209,6 +209,17 @@ public interface MongoClient {
   MongoClient findOne(String collection, JsonObject query, JsonObject fields, Handler<AsyncResult<JsonObject>> resultHandler);
 
   /**
+   * Find a single matching document in the specified collection and update it
+   *
+   * @param collection  the collection
+   * @param query  the query used to match the document
+   * @param options  options to configure the find and update behaviour
+   * @param resultHandler will be provided with the document, if any
+   */
+  @Fluent
+  MongoClient findOneAndUpdateWithOptions(String collection, JsonObject query, JsonObject update, FindOneAndUpdateOptions options, Handler<AsyncResult<JsonObject>> resultHandler);
+
+  /**
    * Count matching documents in a collection.
    *
    * @param collection  the collection

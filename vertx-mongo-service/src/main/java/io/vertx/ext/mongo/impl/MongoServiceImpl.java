@@ -111,6 +111,13 @@ public class MongoServiceImpl implements MongoService {
 
   @Override
   @Fluent
+  public MongoService findOneAndUpdateWithOptions(String collection, JsonObject query, JsonObject update, FindOneAndUpdateOptions options, Handler<AsyncResult<JsonObject>> resultHandler) {
+    client.findOneAndUpdateWithOptions(collection, query, update, options, resultHandler);
+    return this;
+  }
+
+  @Override
+  @Fluent
   public MongoService count(String collection, JsonObject query, Handler<AsyncResult<Long>> resultHandler) {
     client.count(collection, query, resultHandler);
     return this;

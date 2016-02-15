@@ -27,6 +27,7 @@ import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.core.shareddata.LocalMap;
 import io.vertx.core.shareddata.Shareable;
+import io.vertx.ext.mongo.FindOneAndUpdateOptions;
 import io.vertx.ext.mongo.FindOptions;
 import io.vertx.ext.mongo.UpdateOptions;
 import io.vertx.ext.mongo.WriteOption;
@@ -36,9 +37,11 @@ import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 /**
  * The implementation of the {@link io.vertx.ext.mongo.MongoClient}. This implementation is based on the async driver
@@ -233,6 +236,39 @@ public class MongoClientImpl implements io.vertx.ext.mongo.MongoClient {
     Bson bquery = wrap(query);
     Bson bfields = wrap(fields);
     getCollection(collection).find(bquery).projection(bfields).first(wrapCallback(resultHandler));
+    return this;
+  }
+
+  @Override
+  public io.vertx.ext.mongo.MongoClient findOneAndUpdateWithOptions(String collection, JsonObject query, JsonObject update, FindOneAndUpdateOptions options, Handler<AsyncResult<JsonObject>> resultHandler) {
+    requireNonNull(collection, "collection cannot be null");
+    requireNonNull(query, "query cannot be null");
+    requireNonNull(resultHandler, "resultHandler cannot be null");
+
+    query = encodeKeyWhenUseObjectId(query);
+
+    Bson bquery = wrap(query);
+    Bson bUpdate = wrap(update);
+
+    com.mongodb.client.model.FindOneAndUpdateOptions findOneOptions = new com.mongodb.client.model.FindOneAndUpdateOptions();
+
+
+    if(options.getProjection() != null) {
+      findOneOptions.projection(wrap(options.getProjection()));
+    }
+    if(options.getSort() != null) {
+      findOneOptions.sort(wrap(options.getSort()));
+    }
+    if(options.getBypassDocumentValidation() != null){
+      findOneOptions.bypassDocumentValidation(options.getBypassDocumentValidation());
+    }
+
+    findOneOptions.upsert(options.isUpsert());
+    findOneOptions.returnDocument(com.mongodb.client.model.ReturnDocument.valueOf(options.getReturnDocument().name()));
+    findOneOptions.maxTime(MILLISECONDS.convert(options.getMaxTimeMS(), TimeUnit.MILLISECONDS), TimeUnit.MILLISECONDS);
+    findOneOptions.bypassDocumentValidation(options.getBypassDocumentValidation());
+
+    getCollection(collection).findOneAndUpdate(bquery, bUpdate, findOneOptions, wrapCallback(resultHandler));
     return this;
   }
 
